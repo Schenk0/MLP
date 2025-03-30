@@ -16,9 +16,7 @@ class NeuralNetwork:
         
         # Create weights and biases for each layer
         for i in range(len(layer_sizes) - 1):
-            # Initialize weights with He initialization
-            w = np.random.randn(layer_sizes[i], layer_sizes[i+1]) * np.sqrt(2.0 / layer_sizes[i])
-            # Initialize biases with zeros
+            w = np.random.randn(layer_sizes[i], layer_sizes[i+1]) * 0.1
             b = np.zeros((1, layer_sizes[i+1]))
 
             self.weights.append(w)
@@ -42,7 +40,7 @@ class NeuralNetwork:
         # σ'(z) = σ(z) * (1 - σ(z))
         return self.sigmoid(z) * (1 - self.sigmoid(z))
 
-    # Calculate loss (Mean Squared Error + L2 regularization)
+    # Calculate loss (Mean Squared Error + regularization)
     def compute_loss(self, predictions, targets, lambda_reg):
         # L = 1 / 2 * (y - t)^2
         loss = np.mean(0.5 * (predictions - targets) ** 2)
@@ -64,7 +62,6 @@ class NeuralNetwork:
 
     # Forward pass
     def forward_pass(self, x):
-        # Store activations and z values for backpropagation
         activations = [x]
         z_values = []
         
@@ -88,10 +85,8 @@ class NeuralNetwork:
 
     # Backward pass
     def backward_pass(self, x, t, z_values, activations, learning_rate, lambda_reg):
-        # Number of samples
         m = x.shape[0]
         
-        # Initialize arrays to store gradients
         dw = [np.zeros_like(w) for w in self.weights]
         db = [np.zeros_like(b) for b in self.biases]
         
@@ -126,42 +121,20 @@ class NeuralNetwork:
             # b = b - η * ∂L/∂b
             self.biases[l] -= learning_rate * db[l]
     
-    def train(self, x, t, learning_rate, lambda_reg, epochs, batch_size=None):
-        # Convert inputs to numpy arrays if they aren't already
+    def train(self, x, t, learning_rate, lambda_reg, epochs):
         x = np.atleast_2d(x)
         t = np.atleast_2d(t)
         
-        n_samples = x.shape[0]
-        
-        # Default batch size is full dataset
-        if batch_size is None:
-            batch_size = n_samples
-        
         # Gradient descent loop
         for epoch in range(epochs):
-            # Shuffle data for mini-batch training
-            if batch_size < n_samples:
-                indices = np.random.permutation(n_samples)
-                x_shuffled = x[indices]
-                t_shuffled = t[indices]
-            else:
-                x_shuffled = x
-                t_shuffled = t
-                
-            # Mini-batch training
-            for i in range(0, n_samples, batch_size):
-                x_batch = x_shuffled[i:i+batch_size]
-                t_batch = t_shuffled[i:i+batch_size]
-                
-                # FORWARD PASS
-                z_values, activations = self.forward_pass(x_batch)
-                
-                # BACKWARD PASS
-                self.backward_pass(x_batch, t_batch, z_values, activations, learning_rate, lambda_reg)
+            # FORWARD PASS
+            z_values, activations = self.forward_pass(x)
+            
+            # BACKWARD PASS
+            self.backward_pass(x, t, z_values, activations, learning_rate, lambda_reg)
             
             # Compute metrics on full dataset
             if epoch % 100 == 0:
-                _, activations = self.forward_pass(x)
                 predictions = activations[-1]
                 loss = self.compute_loss(predictions, t, lambda_reg)
                 accuracy = self.compute_accuracy(predictions, t)
@@ -172,14 +145,12 @@ class NeuralNetwork:
         _, activations = self.forward_pass(x)
         return activations[-1]
 
-# Set random seed for reproducibility
 np.random.seed(42)
 
 # Hyperparameters
 learning_rate = 0.1
 lambda_reg = 0.0001
 epochs = 5000
-batch_size = 4  # Full batch for small dataset
 
 # XOR problem dataset
 x = np.array([
@@ -196,9 +167,8 @@ t = np.array([
     [0]
 ])
 
-# Create a neural network with 2 inputs, 1 hidden layer with 4 neurons, and 1 output
 nn = NeuralNetwork(input_size=2, hidden_sizes=[4], output_size=1)
-nn.train(x, t, learning_rate, lambda_reg, epochs, batch_size)
+nn.train(x, t, learning_rate, lambda_reg, epochs)
 
 # Test the trained model on XOR inputs
 print("\nXOR Problem Results:")

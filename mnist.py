@@ -13,7 +13,7 @@ def get_mnist_data(test_size=1000):
 
     # Normalize the data
     scaler = StandardScaler()
-    #scaler = MinMaxScaler ()
+    #scaler = MinMaxScaler()
     X = scaler.fit_transform(X)
 
     # Convert labels to one-hot encoding

@@ -79,7 +79,6 @@ class NeuralNetwork:
 
     # Softmax function
     def softmax(self, z):
-        # Subtract max for numerical stability
         exp_z = np.exp(z - np.max(z, axis=1, keepdims=True))
         return exp_z / np.sum(exp_z, axis=1, keepdims=True)
 
@@ -101,7 +100,7 @@ class NeuralNetwork:
         # σ'(z) = σ(z) * (1 - σ(z))
         return self.sigmoid(z) * (1 - self.sigmoid(z))
 
-    # Calculate loss (Mean Squared Error + L2 regularization)
+    # Calculate loss (Mean Squared Error + regularization)
     def MSE_cost_function(self, predictions, targets):
         # L = 1 / 2 * (y - t)^2
         loss = np.mean(0.5 * (predictions - targets) ** 2)
@@ -124,7 +123,6 @@ class NeuralNetwork:
 
     # Forward pass
     def forward_pass(self, x):
-        # Store activations and z values for backpropagation
         activations = [x]
         z_values = []
         
@@ -135,7 +133,6 @@ class NeuralNetwork:
             z = np.dot(a, self.weights[i]) + self.biases[i]
             z_values.append(z)
             
-            # Allow for different activation functions for hidden and output layers
             # a = σ(z)
             if i < len(self.weights) - 1:
                 a = self.hidden_activation(z)
@@ -147,10 +144,8 @@ class NeuralNetwork:
 
     # Backward pass
     def backward_pass(self, x, t, z_values, activations):
-        # Number of samples
         m = x.shape[0]
         
-        # Initialize arrays to store gradients
         dw = [np.zeros_like(w) for w in self.weights]
         db = [np.zeros_like(b) for b in self.biases]
         
@@ -160,18 +155,14 @@ class NeuralNetwork:
         
         # Backpropagate through layers
         for l in reversed(range(len(self.weights))):
-            # Use ReLU for hidden layers, special case for output layer with softmax
+            # ∂L/∂z = ∂L/∂y * ∂y/∂z = delta * σ'(z)
             if l == len(self.weights) - 1:
-                # ∂L/∂z = ∂L/∂y * ∂y/∂z = delta * σ'(z)
                 if self.output_activation == "softmax":
-                    # For softmax with cross-entropy loss, the derivative is already
-                    # incorporated in the error calculation (predictions - targets)
+                    # For softmax the derivative is already incorporated in the error calculation (predictions - targets)
                     pass
                 elif self.output_activation == "sigmoid":
                     delta = delta * self.sigmoid_derivative(z_values[l])
-                #pass
             else:
-                # ∂L/∂z = ∂L/∂y * ∂y/∂z = delta * ReLU'(z)
                 delta = delta * self.hidden_activation_derivative(z_values[l])
 
             # ∂L/∂w = ∂L/∂z * ∂z/∂w + λ * w
@@ -192,12 +183,12 @@ class NeuralNetwork:
             self.biases[l] -= self.learning_rate * db[l]
     
     def train(self):
-        # Convert inputs to numpy arrays if they aren't already
+        # Convert inputs to numpy arrays
         x = np.atleast_2d(self.x_train)
         t = np.atleast_2d(self.y_train)
 
-        if self.include_logging:
-            # Test the model
+        # Test the model
+        if self.include_logging: 
             predictions = self.predict(self.x_test)
             accuracy = np.mean(np.argmax(predictions, axis=1) == np.argmax(self.y_test, axis=1)) * 100
             print(f"Pre-Training Accuracy: {accuracy:.2f}%\n")
@@ -217,7 +208,7 @@ class NeuralNetwork:
             # BACKWARD PASS
             self.backward_pass(x, t, z_values, activations)
             
-            # Compute metrics on full dataset
+            # Compute metrics on full dataset every 10 epochs
             if epoch % 10 == 0:
                 # Training metrics
                 predictions = activations[-1]
