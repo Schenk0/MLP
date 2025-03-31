@@ -14,4 +14,4 @@ To run use the following commands.
 
 ## To-Do
 - [ ] Implement mini-batch training
-- [ ] Implement cross entropy cost function
+- [ ] Implement cross entropy loss function

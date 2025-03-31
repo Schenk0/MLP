@@ -1,9 +1,9 @@
 import numpy as np
-from visualizer import plot_results, plot_mnist_examples, plot_misclassified_examples
+import visualizer
 
 class NeuralNetwork:
     def __init__(self, input_size, hidden_sizes, output_size, 
-                 X_train, y_train, X_test, y_test, sample_size, test_size, 
+                 X_train, y_train, X_test, y_test, X_val, y_val,
                  learning_rate=0.01, lambda_reg=0.0005, epochs=100, 
                  hidden_activation="relu", output_activation="sigmoid",
                  include_logging=True, random_seed=42):
@@ -37,16 +37,16 @@ class NeuralNetwork:
         self.epochs = epochs
 
         # Training data
-        self.x_train = X_train[:sample_size]
-        self.y_train = y_train[:sample_size]
+        self.x_train = X_train
+        self.y_train = y_train
 
-        # TODO: figure out how to split the data into training and validation sets
-        self.x_val = X_test[:test_size]
-        self.t_val = y_test[:test_size]
+        # Validation data
+        self.x_val = X_val
+        self.y_val = y_val
 
         # Test data
-        self.x_test = X_test[:test_size]
-        self.y_test = y_test[:test_size]
+        self.x_test = X_test
+        self.y_test = y_test
 
         # Input layer
         self.input_size = input_size
@@ -74,8 +74,8 @@ class NeuralNetwork:
 
         self.train_losses = []
         self.train_accuracies = []
-        self.val_losses = []
-        self.val_accuracies = []
+        self.test_losses = []
+        self.test_accuracies = []
 
     # Softmax function
     def softmax(self, z):
@@ -101,7 +101,7 @@ class NeuralNetwork:
         return self.sigmoid(z) * (1 - self.sigmoid(z))
 
     # Calculate loss (Mean Squared Error + regularization)
-    def MSE_cost_function(self, predictions, targets):
+    def MSE_loss_function(self, predictions, targets):
         # L = 1 / 2 * (y - t)^2
         loss = np.mean(0.5 * (predictions - targets) ** 2)
         
@@ -188,17 +188,14 @@ class NeuralNetwork:
         t = np.atleast_2d(self.y_train)
 
         # Test the model
-        if self.include_logging: 
-            predictions = self.predict(self.x_test)
-            accuracy = np.mean(np.argmax(predictions, axis=1) == np.argmax(self.y_test, axis=1)) * 100
-            print(f"Pre-Training Accuracy: {accuracy:.2f}%\n")
-            print("Training neural network...\n")
+        if self.include_logging:
+            print("\nTraining neural network...")
         
         # Track metrics for plotting
         train_losses = []
         train_accuracies = []
-        val_losses = []
-        val_accuracies = []
+        test_losses = []
+        test_accuracies = []
         
         # Gradient descent loop
         for epoch in range(self.epochs):
@@ -207,58 +204,111 @@ class NeuralNetwork:
             
             # BACKWARD PASS
             self.backward_pass(x, t, z_values, activations)
-            
+
+            # Training metrics
+            predictions = activations[-1]
+            loss = self.MSE_loss_function(predictions, t)
+            accuracy = self.compute_accuracy(predictions, t)
+            train_losses.append(loss)
+            train_accuracies.append(accuracy)
+
+            # Validation metrics if validation data is provided
+            _, test_activations = self.forward_pass(self.x_test)
+            test_predictions = test_activations[-1]
+            test_loss = self.MSE_loss_function(test_predictions, self.y_test)
+            test_accuracy = self.compute_accuracy(test_predictions, self.y_test)
+            test_losses.append(test_loss)
+            test_accuracies.append(test_accuracy)
+    
             # Compute metrics on full dataset every 10 epochs
-            if epoch % 10 == 0:
-                # Training metrics
-                predictions = activations[-1]
-                loss = self.MSE_cost_function(predictions, t)
-                accuracy = self.compute_accuracy(predictions, t)
-                train_losses.append(loss)
-                train_accuracies.append(accuracy)
-                
-                # Validation metrics if validation data is provided
-                val_metrics = ""
-                if self.x_val is not None and self.t_val is not None and self.include_logging:
-                    _, val_activations = self.forward_pass(self.x_val)
-                    val_predictions = val_activations[-1]
-                    val_loss = self.MSE_cost_function(val_predictions, self.t_val)
-                    val_accuracy = self.compute_accuracy(val_predictions, self.t_val)
-                    val_losses.append(val_loss)
-                    val_accuracies.append(val_accuracy)
-                    val_metrics = f", Val Loss = {val_loss:.6f}, Val Accuracy = {val_accuracy:.2f}%"
-                
-                if self.include_logging:
-                    print(f"Epoch {epoch}: Loss = {loss:.6f}, Accuracy = {accuracy:.2f}%{val_metrics}")
+            if epoch % 10 == 0 and self.include_logging:  
+                test_metrics = f", Test Loss = {test_loss:.6f}, Test Accuracy = {test_accuracy:.2f}%"
+                print(f"Epoch {epoch}: Loss = {loss:.6f}, Accuracy = {accuracy:.2f}%{test_metrics}")
         
-        if self.x_val is not None and self.t_val is not None:
-            self.train_losses = train_losses
-            self.train_accuracies = train_accuracies
-            self.val_losses = val_losses
-            self.val_accuracies = val_accuracies
-        else:
-            self.train_losses = train_losses
-            self.train_accuracies = train_accuracies
+        self.train_losses = train_losses
+        self.train_accuracies = train_accuracies
+        self.test_losses = test_losses
+        self.test_accuracies = test_accuracies
         
         if self.include_logging:
             print("\nTraining complete!")
-            print("\nEvaluating on test set...")
-            predictions = self.predict(self.x_test)
-            accuracy = np.mean(np.argmax(predictions, axis=1) == np.argmax(self.y_test, axis=1)) * 100
-            print(f"Post-Training Accuracy: {accuracy:.2f}%")
 
     def predict(self, x):
         x = np.atleast_2d(x)
         _, activations = self.forward_pass(x)
         return activations[-1]
     
-    def plot_results(self):
-        plot_results(self.train_accuracies, self.train_losses, self.val_accuracies, self.val_losses)
+    def evaluate(self):
+        predictions = self.predict(self.x_val)
+        accuracy = np.mean(np.argmax(predictions, axis=1) == np.argmax(self.y_val, axis=1)) * 100
+        return accuracy
+    
+    def get_training_history(self):
+        return self.train_accuracies, self.train_losses, self.test_accuracies, self.test_losses
 
-    def plot_mnist_examples(self):
-        predictions = self.predict(self.x_test)
-        plot_mnist_examples(self.x_test, self.y_test, predictions, n_examples=5)
+    def plot_results(self, save_path=None):
+        visualizer.plot_results(self.train_accuracies, self.train_losses, self.test_accuracies, self.test_losses, save_path=save_path)
 
-    def plot_misclassified_examples(self):
+    def plot_mnist_examples(self, save_path=None):
         predictions = self.predict(self.x_test)
-        plot_misclassified_examples(self.x_test, self.y_test, predictions, n_examples=5)
+        visualizer.plot_mnist_examples(self.x_test, self.y_test, predictions, n_examples=5, save_path=save_path)
+
+    def plot_misclassified_examples(self, save_path=None):
+        predictions = self.predict(self.x_test)
+        visualizer.plot_misclassified_examples(self.x_test, self.y_test, predictions, n_examples=5, save_path=save_path)
+
+    def save_model(self, filepath):
+        """
+        Save the neural network's weights and biases to a NumPy .npz file.
+        
+        Args:
+            filepath (str): Path where the model should be saved
+        """
+        # Create a dictionary of weights and biases
+        model_data = {}
+        
+        # Save weights and biases for each layer
+        for i in range(len(self.weights)):
+            model_data[f'weights_{i}'] = self.weights[i]
+            model_data[f'biases_{i}'] = self.biases[i]
+        
+        # Save network architecture parameters
+        model_data['input_size'] = self.input_size
+        model_data['hidden_sizes'] = np.array(self.hidden_sizes)
+        model_data['output_size'] = self.output_size
+        model_data['learning_rate'] = self.learning_rate
+        model_data['lambda_reg'] = self.lambda_reg
+        model_data['epochs'] = self.epochs
+        
+        # Save the data to a .npz file
+        np.savez(filepath, **model_data)
+
+    def load_model(self, filepath):
+        """
+        Load the neural network's weights and biases from a NumPy .npz file.
+        
+        Args:
+            filepath (str): Path to the saved model file
+        """
+        # Load the data from the .npz file
+        model_data = np.load(filepath)
+        
+        # Load weights and biases for each layer
+        self.weights = []
+        self.biases = []
+        i = 0
+        while f'weights_{i}' in model_data:
+            self.weights.append(model_data[f'weights_{i}'])
+            self.biases.append(model_data[f'biases_{i}'])
+            i += 1
+        
+        # Load network architecture parameters
+        self.input_size = int(model_data['input_size'])
+        self.hidden_sizes = model_data['hidden_sizes'].tolist()
+        self.output_size = int(model_data['output_size'])
+        self.learning_rate = float(model_data['learning_rate'])
+        self.lambda_reg = float(model_data['lambda_reg'])
+        self.epochs = int(model_data['epochs'])
+        
+        if self.include_logging:
+            print(f"Model loaded from {filepath}")

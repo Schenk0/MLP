@@ -1,8 +1,16 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def plot_results(train_acc, train_loss, val_acc=None, val_loss=None):
-    """Plot training loss and accuracy"""
+def plot_results(train_acc, train_loss, val_acc=None, val_loss=None, save_path=None):
+    """Plot training loss and accuracy
+    
+    Args:
+        train_acc: List of training accuracies
+        train_loss: List of training losses
+        val_acc: List of validation accuracies (optional)
+        val_loss: List of validation losses (optional)
+        save_path: Path to save the plot (optional). If None, plot is shown.
+    """
     plt.figure(figsize=(12, 8))
     
     # Plot accuracy
@@ -12,7 +20,7 @@ def plot_results(train_acc, train_loss, val_acc=None, val_loss=None):
         plt.plot(val_acc, label='validation', color='orange')
     plt.title('Model Accuracy')
     plt.ylabel('Accuracy')
-    plt.xlabel('Epoch (x10)')
+    plt.xlabel('Epoch')
     plt.legend(loc='lower right')
     plt.grid(True)
     
@@ -23,15 +31,28 @@ def plot_results(train_acc, train_loss, val_acc=None, val_loss=None):
         plt.plot(val_loss, label='validation', color='orange')
     plt.title('Model Loss')
     plt.ylabel('Loss')
-    plt.xlabel('Epoch (x10)')
+    plt.xlabel('Epoch')
     plt.legend(loc='upper right')
     plt.grid(True)
     
     plt.tight_layout()
-    plt.show()
+    
+    if save_path:
+        plt.savefig(save_path)
+        plt.close()
+    else:
+        plt.show()
 
-def plot_mnist_examples(X, true_labels, predictions=None, n_examples=5):
-    """Plot MNIST examples and their predictions"""
+def plot_mnist_examples(X, true_labels, predictions=None, n_examples=5, save_path=None):
+    """Plot MNIST examples and their predictions
+    
+    Args:
+        X: Input images
+        true_labels: True labels
+        predictions: Model predictions (optional)
+        n_examples: Number of examples to plot
+        save_path: Path to save the plot (optional). If None, plot is shown.
+    """
     fig, axes = plt.subplots(1, n_examples, figsize=(15, 3))
     for i in range(n_examples):
         # Reshape the image
@@ -51,10 +72,23 @@ def plot_mnist_examples(X, true_labels, predictions=None, n_examples=5):
         axes[i].axis('off')
     
     plt.tight_layout()
-    plt.show()
+    
+    if save_path:
+        plt.savefig(save_path)
+        plt.close()
+    else:
+        plt.show()
 
-def plot_misclassified_examples(X, true_labels, predictions, n_examples=5):
-    """Plot misclassified examples"""
+def plot_misclassified_examples(X, true_labels, predictions, n_examples=5, save_path=None):
+    """Plot misclassified examples
+    
+    Args:
+        X: Input images
+        true_labels: True labels
+        predictions: Model predictions
+        n_examples: Number of examples to plot
+        save_path: Path to save the plot (optional). If None, plot is shown.
+    """
     misclassified_indices = np.where(np.argmax(predictions, axis=1) != np.argmax(true_labels, axis=1))[0]
     if len(misclassified_indices) > 0:
         misclassified_count = min(n_examples, len(misclassified_indices))
@@ -62,7 +96,8 @@ def plot_misclassified_examples(X, true_labels, predictions, n_examples=5):
             X[misclassified_indices[:misclassified_count]], 
             true_labels[misclassified_indices[:misclassified_count]], 
             predictions[misclassified_indices[:misclassified_count]], 
-            n_examples=misclassified_count
+            n_examples=misclassified_count,
+            save_path=save_path
         )
     else:
         print("No misclassified examples found!")
